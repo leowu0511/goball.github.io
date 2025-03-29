@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>go ball 跑吧小球</title>
+    <title>goball 跑吧小球</title>
     <style>
         body {
             text-align: center;
@@ -41,9 +41,15 @@
             width: 90px;
             height: 10px;
         }
+        #score-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 600px;
+            margin: 10px auto;
+        }
         #score {
             font-size: 20px;
-            margin-top: 10px;
         }
         #time {
             font-size: 20px;
@@ -53,22 +59,49 @@
             font-size: 20px;
             margin-top: 5px;
         }
+        .game-button {
+            padding: 10px 20px;
+            font-size: 18px;
+            margin: 0 10px;
+            cursor: pointer;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        .game-button:active {
+            background-color: #3367d6;
+        }
+        #crouch-button {
+            background-color: #db4437;
+        }
+        #crouch-button:active {
+            background-color: #c31c0d;
+        }
     </style>
 </head>
 <body>
-    <h1>按空白鍵跳躍，按 Shift 蹲下</h1>
+    <h1>按空白鍵或跳躍按鈕跳躍，按 Shift 或蹲下按鈕蹲下</h1>
     <div id="game">
         <div class="ball" id="ball"></div>
     </div>
-    <div id="score">分數: 0</div>
-    <div id="time">時間: 0秒</div>
-    <div id="speed">速度: 1x</div>
+    <div id="score-container">
+        <button id="jump-button" class="game-button">跳躍</button>
+        <div>
+            <div id="score">分數: 0</div>
+            <div id="time">時間: 0秒</div>
+            <div id="speed">速度: 1x</div>
+        </div>
+        <button id="crouch-button" class="game-button">蹲下</button>
+    </div>
     <script>
         let ball = document.getElementById("ball");
         let game = document.getElementById("game");
         let scoreElement = document.getElementById("score");
         let timeElement = document.getElementById("time");
         let speedElement = document.getElementById("speed");
+        let jumpButton = document.getElementById("jump-button");
+        let crouchButton = document.getElementById("crouch-button");
         let isJumping = false;
         let gravity = 1;
         let velocity = 0;
@@ -89,24 +122,61 @@
         const BALL_HEIGHT = 30;
         const BALL_CROUCHING_HEIGHT = 20;
 
-        document.addEventListener("keydown", function(event) {
-            if (event.code === "Space" && !isJumping && !gameOver) {
+        function jump() {
+            if (!isJumping && !gameOver) {
                 isJumping = true;
                 velocity = 15;
             }
-            if ((event.code === "ShiftLeft" || event.code === "ShiftRight") && !gameOver) {
-                isCrouching = true;
-                ball.style.height = BALL_CROUCHING_HEIGHT + "px";
-                ball.style.width = "35px";
+        }
+
+        function crouch(isCrouchingNow) {
+            if (!gameOver) {
+                isCrouching = isCrouchingNow;
+                if (isCrouching) {
+                    ball.style.height = BALL_CROUCHING_HEIGHT + "px";
+                    ball.style.width = "35px";
+                } else {
+                    ball.style.height = BALL_HEIGHT + "px";
+                    ball.style.width = "30px";
+                }
+            }
+        }
+
+        // 按鍵事件
+        document.addEventListener("keydown", function(event) {
+            if (event.code === "Space") {
+                jump();
+            }
+            if (event.code === "ShiftLeft" || event.code === "ShiftRight") {
+                crouch(true);
             }
         });
 
         document.addEventListener("keyup", function(event) {
-            if ((event.code === "ShiftLeft" || event.code === "ShiftRight") && !gameOver) {
-                isCrouching = false;
-                ball.style.height = BALL_HEIGHT + "px";
-                ball.style.width = "30px";
+            if (event.code === "ShiftLeft" || event.code === "ShiftRight") {
+                crouch(false);
             }
+        });
+
+        // 按鈕事件
+        jumpButton.addEventListener("click", jump);
+        
+        crouchButton.addEventListener("mousedown", function() {
+            crouch(true);
+        });
+
+        crouchButton.addEventListener("mouseup", function() {
+            crouch(false);
+        });
+
+        crouchButton.addEventListener("touchstart", function(e) {
+            e.preventDefault();
+            crouch(true);
+        });
+
+        crouchButton.addEventListener("touchend", function(e) {
+            e.preventDefault();
+            crouch(false);
         });
 
         function update() {
