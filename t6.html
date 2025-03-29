@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小恐龍遊戲</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        #game {
+            position: relative;
+            width: 600px;
+            height: 200px;
+            border: 2px solid black;
+            overflow: hidden;
+            background-color: lightgray;
+            margin: auto;
+        }
+        .ball {
+            position: absolute;
+            bottom: 0;
+            left: 50px;
+            width: 30px;
+            height: 30px;
+            background-color: blue;
+            border-radius: 50%;
+            transition: height 0.1s, width 0.1s;
+        }
+        .obstacle {
+            position: absolute;
+            background-color: red;
+        }
+        .ground-obstacle {
+            bottom: 0;
+            width: 20px;
+        }
+        .aerial-obstacle {
+            bottom: 0;
+            width: 90px;
+            height: 10px;
+        }
+        #score {
+            font-size: 20px;
+            margin-top: 10px;
+        }
+        #time {
+            font-size: 20px;
+            margin-top: 5px;
+        }
+        #speed {
+            font-size: 20px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>按空白鍵跳躍，按 Shift 蹲下</h1>
+    <div id="game">
+        <div class="ball" id="ball"></div>
+    </div>
+    <div id="score">分數: 0</div>
+    <div id="time">時間: 0秒</div>
+    <div id="speed">速度: 1x</div>
+    <script>
+        let ball = document.getElementById("ball");
+        let game = document.getElementById("game");
+        let scoreElement = document.getElementById("score");
+        let timeElement = document.getElementById("time");
+        let speedElement = document.getElementById("speed");
+        let isJumping = false;
+        let gravity = 1;
+        let velocity = 0;
+        let position = 0;
+        let obstacles = [];
+        let isCrouching = false;
+        let gameOver = false;
+        let score = 0;
+        
+        // 遊戲難度和時間設置
+        let gameSpeed = 1;
+        let maxSpeed = 3;
+        let gameTime = 0;
+        let speedUpTime = 120;
+        let obstacleSpawnInterval = 2000;
+        let minObstacleSpawnInterval = 800;
+
+        const BALL_HEIGHT = 30;
+        const BALL_CROUCHING_HEIGHT = 20;
+
+        document.addEventListener("keydown", function(event) {
+            if (event.code === "Space" && !isJumping && !gameOver) {
+                isJumping = true;
+                velocity = 15;
+            }
+            if ((event.code === "ShiftLeft" || event.code === "ShiftRight") && !gameOver) {
+                isCrouching = true;
+                ball.style.height = BALL_CROUCHING_HEIGHT + "px";
+                ball.style.width = "35px";
+            }
+        });
+
+        document.addEventListener("keyup", function(event) {
+            if ((event.code === "ShiftLeft" || event.code === "ShiftRight") && !gameOver) {
+                isCrouching = false;
+                ball.style.height = BALL_HEIGHT + "px";
+                ball.style.width = "30px";
+            }
+        });
+
+        function update() {
+            if (gameOver) return;
+            
+            if (isJumping) {
+                position += velocity;
+                velocity -= gravity;
+                if (position <= 0) {
+                    position = 0;
+                    isJumping = false;
+                }
+                ball.style.bottom = position + "px";
+            }
+            moveObstacles();
+            updateScore();
+        }
+
+        function updateScore() {
+            score++;
+            scoreElement.textContent = "分數: " + Math.floor(score/10);
+        }
+
+        function createObstacle() {
+            if (gameOver) return;
+            
+            let obstacle = document.createElement("div");
+            obstacle.classList.add("obstacle");
+            obstacle.style.right = "0px";
+            
+            let isAerial = Math.random() > 0.5;
+            
+            if (isAerial) {
+                obstacle.classList.add("aerial-obstacle");
+                obstacle.style.height = "30px";
+                obstacle.style.bottom = BALL_HEIGHT + "px";
+            } else {
+                obstacle.classList.add("ground-obstacle");
+                let randomHeight = Math.floor(Math.random() * (80 - 40 + 1)) + 40; // 隨機高度 40~80
+                obstacle.style.height = randomHeight + "px";
+            }
+            
+            game.appendChild(obstacle);
+            obstacles.push(obstacle);
+            
+            clearInterval(obstacleInterval);
+            let currentInterval = obstacleSpawnInterval / gameSpeed;
+            if (currentInterval < minObstacleSpawnInterval) {
+                currentInterval = minObstacleSpawnInterval;
+            }
+            obstacleInterval = setInterval(createObstacle, currentInterval);
+        }
+
+        function moveObstacles() {
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let obstacle = obstacles[i];
+                let currentRight = parseInt(obstacle.style.right) || 0;
+                obstacle.style.right = (currentRight + (5 * gameSpeed)) + "px";
+                
+                if (checkCollision(ball, obstacle)) {
+                    endGame();
+                    return;
+                }
+                
+                if (currentRight > game.clientWidth + 100) {
+                    game.removeChild(obstacle);
+                    obstacles.splice(i, 1);
+                }
+            }
+        }
+
+        function checkCollision(ball, obstacle) {
+            let ballRect = ball.getBoundingClientRect();
+            let obsRect = obstacle.getBoundingClientRect();
+            return !(
+                ballRect.right < obsRect.left || 
+                ballRect.left > obsRect.right || 
+                ballRect.bottom < obsRect.top || 
+                ballRect.top > obsRect.bottom
+            );
+        }
+        
+        function updateGameTime() {
+            if (gameOver) return;
+            
+            gameTime++;
+            timeElement.textContent = "時間: " + gameTime + "秒";
+            
+            if (gameTime <= speedUpTime) {
+                gameSpeed = 1 + ((maxSpeed - 1) * (gameTime / speedUpTime));
+                speedElement.textContent = "速度: " + gameSpeed.toFixed(1) + "x";
+            }
+        }
+        
+        function endGame() {
+            gameOver = true;
+            alert("遊戲結束！\n最終分數: " + Math.floor(score/10) + "\n存活時間: " + gameTime + "秒");
+            if (confirm("要重新開始嗎?")) {
+                location.reload();
+            }
+        }
+
+        let updateInterval = setInterval(update, 20);
+        let obstacleInterval = setInterval(createObstacle, obstacleSpawnInterval);
+        let timeInterval = setInterval(updateGameTime, 1000);
+    </script>
+</body>
+</html>
